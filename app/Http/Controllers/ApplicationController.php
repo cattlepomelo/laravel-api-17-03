@@ -60,4 +60,49 @@ class ApplicationController extends Controller
 
         }); // If any Exception is thrown, DB::transaction will automatically roll back.
     }
+
+    /**
+     * Apply for internship using stored procedure.
+     */
+    public function apply(Request $request)
+    {
+        $request->validate([
+            'user_id'           => 'required|integer',
+            'internship_id'     => 'required|integer',
+            'group_id'          => 'required|integer',
+            'company_id'        => 'nullable|integer',
+            'motivation_letter' => 'required|string',
+        ]);
+
+        DB::statement('CALL apply_for_internship(?, ?, ?, ?, ?, @result)', [
+            $request->user_id,
+            $request->internship_id,
+            $request->group_id,
+            $request->company_id,
+            $request->motivation_letter,
+        ]);
+
+        $result = DB::select('SELECT @result')[0]->{'@result'};
+
+        if ($result === 'OK') {
+            $application = Application::where('user_id', $request->user_id)
+                ->where('internship_id', $request->internship_id)
+                ->latest('id')
+                ->first();
+
+            return response()->json([
+                'message' => 'Application created successfully',
+                'data' => $application
+            ], 201);
+        }
+
+        $status = match ($result) {
+            'User not found'     => 404,
+            'Invalid internship' => 404,
+            'Already applied'    => 409,
+            default              => 400,
+        };
+
+        return response()->json(['error' => $result], $status);
+    }
 }
