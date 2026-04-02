@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(php *)"
+      "Bash(php *)",
+      "Bash(curl *)",
+      "Bash(tail *)",
+      "Bash(pkill *)",
+      "Bash(sleep *)",
+      "Bash(timeout *)",
+      "Bash(true)",
+      "Bash(lsof *)",
+      "Bash(xargs *)"
     ]
   }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Application extends Model
 {
@@ -25,5 +26,13 @@ class Application extends Model
     public function evaluation(): HasOne
     {
         return $this->hasOne(Evaluation::class);
+    }
+
+    /**
+     * Get all comments for the application.
+     */
+    public function comments(): MorphMany
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

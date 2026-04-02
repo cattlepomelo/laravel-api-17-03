@@ -21,27 +21,52 @@ class ApplicationController extends Controller
      */
     public function store(Request $request)
     {
-        return DB::transaction(function () use ($request) {
+        $userId = $request->user_id;
+        $internshipId = $request->internship_id;
 
-            $user = User::find($request->user_id);
-            if (!$user) {
-                return response()->json(['error' => 'User not found'], 404);
-            }
+        // Pre-validation before transaction
+        $user = User::find($userId);
+        if (!$user) {
+            $this->activityLog->log(
+                'application_failed',
+                null,
+                Application::class,
+                null,
+                ['reason' => 'User not found', 'user_id' => $userId, 'internship_id' => $internshipId]
+            );
+            return response()->json(['error' => 'User not found'], 404);
+        }
 
-            $internship = Internship::find($request->internship_id);
-            if (!$internship) {
-                return response()->json(['error' => 'Internship not found'], 404);
-            }
+        $internship = Internship::find($internshipId);
+        if (!$internship) {
+            $this->activityLog->log(
+                'application_failed',
+                $user->id,
+                Application::class,
+                null,
+                ['reason' => 'Internship not found', 'user_id' => $user->id, 'internship_id' => $internshipId]
+            );
+            return response()->json(['error' => 'Internship not found'], 404);
+        }
 
-            $isAllowed = DB::table('group_internships')
-                ->where('group_id', $user->group_id)
-                ->where('internship_id', $internship->id)
-                ->exists();
+        $isAllowed = DB::table('group_internships')
+            ->where('group_id', $user->group_id)
+            ->where('internship_id', $internship->id)
+            ->exists();
 
-            if ($user->role !== 'student' || !$isAllowed) {
-                return response()->json(['error' => 'User is not allowed to apply for this internship'], 403);
-            }
+        if ($user->role !== 'student' || !$isAllowed) {
+            $this->activityLog->log(
+                'application_failed',
+                $user->id,
+                Application::class,
+                null,
+                ['reason' => 'User is not allowed to apply for this internship', 'user_id' => $user->id, 'internship_id' => $internshipId, 'group_id' => $user->group_id]
+            );
+            return response()->json(['error' => 'User is not allowed to apply for this internship'], 403);
+        }
 
+        // Create application within transaction
+        return DB::transaction(function () use ($request, $user, $internship) {
             $application = Application::create([
                 'user_id'           => $user->id,
                 'group_id'          => $user->group_id,
@@ -63,7 +88,6 @@ class ApplicationController extends Controller
                 'message' => 'Application created successfully',
                 'data' => $application
             ], 201);
-
         });
     }
 
